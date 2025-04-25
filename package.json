@@ -1,0 +1,23 @@
+{
+  "name": "stockmanagerapi",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IF0rst/StockManagerAPI.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/IF0rst/StockManagerAPI/issues"
+  },
+  "homepage": "https://github.com/IF0rst/StockManagerAPI#readme",
+  "description": "",
+  "type": "module",
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
