@@ -1,12 +1,51 @@
-openapi: 3.0.0
+openapi: 3.0.3
 info:
-  title: Inventory & Combat API
+  title: Inventory API
   version: 1.0.0
-
+  description: API for managing user inventory and enemies
 servers:
-  - url: http://localhost:3000
-
+  - url: http://localhost:8080
 paths:
+  /auth/login:
+    post:
+      summary: Login a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+              required:
+                - username
+                - password
+      responses:
+        200:
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: boolean
+                  message:
+                    type: string
+        401:
+          description: Login failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: boolean
+                  message:
+                    type: string
   /auth/register:
     post:
       summary: Register a new user
@@ -16,93 +55,336 @@ paths:
           application/json:
             schema:
               type: object
-              required: [username, password]
               properties:
                 username:
                   type: string
                 password:
                   type: string
+              required:
+                - username
+                - password
       responses:
-        '200':
+        200:
           description: Registration successful
-
-  /auth/login:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: boolean
+                  message:
+                    type: string
+        401:
+          description: Registration failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: boolean
+                  message:
+                    type: string
+  /auth/whoami:
+    get:
+      summary: Get user info from JWT
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Returns user info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: boolean
+                  username:
+                    type: string
+                  userId:
+                    type: string
+        401:
+          description: JWT missing or invalid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: boolean
+                  message:
+                    type: string
+  /inventory:
+    get:
+      summary: Get user inventory
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Inventory data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+        500:
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: boolean
+                  message:
+                    type: string
+  /inventory/equip:
     post:
-      summary: Login user
+      summary: Equip an item
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [username, password]
               properties:
-                username:
+                itemId:
                   type: string
-                password:
+              required:
+                - itemId
+      responses:
+        200:
+          description: Item equipped
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: boolean
+                  data:
+                    type: object
+        404:
+          description: Item not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: boolean
+                  message:
+                    type: string
+        500:
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: boolean
+                  message:
+                    type: string
+  /inventory/grab:
+    post:
+      summary: Grab an item
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                itemId:
                   type: string
+              required:
+                - itemId
       responses:
-        '200':
-          description: Login successful
-
-  /auth/whoami:
-    get:
-      summary: Get authenticated user info
-      responses:
-        '200':
-          description: User info
-
-  /inventory:
-    get:
-      summary: Get user's inventory
-      responses:
-        '200':
-          description: Inventory list
-
+        200:
+          description: Item grabbed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: boolean
+                  data:
+                    type: object
+        404:
+          description: Item not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: boolean
+                  message:
+                    type: string
+        500:
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: boolean
+                  message:
+                    type: string
   /inventory/{id}:
     get:
-      summary: Get a specific inventory item
+      summary: Get item details
+      security:
+        - bearerAuth: []
       parameters:
-        - in: path
-          name: id
+        - name: id
+          in: path
           required: true
           schema:
-            type: integer
+            type: string
       responses:
-        '200':
+        200:
           description: Item details
-        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: boolean
+                  data:
+                    type: object
+        404:
           description: Item not found
-
-  /inventory/grab/{id}:
-    get:
-      summary: Grab an unowned item
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: Grab result
-
-  /inventory/equip/{id}:
-    get:
-      summary: Equip an owned item for battle
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: Equip result
-
-  /enemy:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: boolean
+                  message:
+                    type: string
+        500:
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: boolean
+                  message:
+                    type: string
+  /enemies:
     get:
       summary: Get list of enemies
+      security:
+        - bearerAuth: []
       responses:
-        '200':
-          description: Enemy list
+        200:
+          description: List of enemies
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+        500:
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: boolean
+                  message:
+                    type: string
+  /enemies/request:
+    get:
+      summary: Create a new enemy
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: New enemy created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: boolean
+                  data:
+                    type: object
+        500:
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: boolean
+                  message:
+                    type: string
+  /enemies/attack:
+    post:
+      summary: Attack an enemy
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enemyId:
+                  type: string
+              required:
+                - enemyId
+      responses:
+        200:
+          description: Attack successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: boolean
+                  data:
+                    type: object
+        500:
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: boolean
+                  message:
+                    type: string
