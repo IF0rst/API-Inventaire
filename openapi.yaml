@@ -1,0 +1,108 @@
+openapi: 3.0.0
+info:
+  title: Inventory & Combat API
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3000
+
+paths:
+  /auth/register:
+    post:
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Registration successful
+
+  /auth/login:
+    post:
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+
+  /auth/whoami:
+    get:
+      summary: Get authenticated user info
+      responses:
+        '200':
+          description: User info
+
+  /inventory:
+    get:
+      summary: Get user's inventory
+      responses:
+        '200':
+          description: Inventory list
+
+  /inventory/{id}:
+    get:
+      summary: Get a specific inventory item
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Item details
+        '404':
+          description: Item not found
+
+  /inventory/grab/{id}:
+    get:
+      summary: Grab an unowned item
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Grab result
+
+  /inventory/equip/{id}:
+    get:
+      summary: Equip an owned item for battle
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Equip result
+
+  /enemy:
+    get:
+      summary: Get list of enemies
+      responses:
+        '200':
+          description: Enemy list
