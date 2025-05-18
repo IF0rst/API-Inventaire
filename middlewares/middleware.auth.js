@@ -4,7 +4,7 @@ export const authJWT = (req, res, next) => {
   const { jwt } = req.cookies;
 
   if (!jwt) {
-    return res.status(401).json({ error: true, message: "jwt not found" });
+    return res.status(401).json({ error: true, data:{message:"jwt not found"} });
   }
 
   try {
@@ -12,6 +12,6 @@ export const authJWT = (req, res, next) => {
     req.user = { username, userId };
     next();
   } catch (e) {
-    return res.status(401).json({ error: true, message: "Invalid token" });
+    return res.status(401).json({ error: true, data:{message: "Invalid token"} });
   }
 };

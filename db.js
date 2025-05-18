@@ -8,6 +8,8 @@ export const initTables = () => {
       username TEXT NOT NULL,
       passwordHash TEXT NOT NULL,
       equipped INTEGER,
+      health INTEGER DEFAULT 100,
+      maxHealth INTEGER DEFAULT 100,
       FOREIGN KEY (equipped) REFERENCES inventory(id)
     )
   `;
@@ -15,7 +17,7 @@ export const initTables = () => {
 const createInventoryTable = `
   CREATE TABLE IF NOT EXISTS inventory (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    owner_id TEXT, -- Retire le NOT NULL ici
+    owner_id TEXT,  
     itemJSON TEXT NOT NULL,
     FOREIGN KEY (owner_id) REFERENCES user(userId)
   )
@@ -27,6 +29,7 @@ const createInventoryTable = `
       name TEXT NOT NULL,
       health INTEGER NOT NULL,
       dropItemId INTEGER,
+      damage INTEGER,
       FOREIGN KEY (dropItemId) REFERENCES inventory(id)
     )
   `;

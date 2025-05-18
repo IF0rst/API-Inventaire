@@ -1,66 +1,56 @@
 import database from "../db.js";
 
 export const getInventoryData = (userId) => {
-    const stmt = database.prepare(`
-        SELECT id, itemJSON
-        FROM inventory
-        WHERE owner_id = ?
-    `);
+  const stmt = database.prepare(`
+    SELECT id, itemJSON
+    FROM inventory
+    WHERE owner_id = ?
+  `);
 
-    const rows = stmt.all(userId);
+  const rows = stmt.all(userId);
 
-    const items = rows.map(row => {
-        const item = JSON.parse(row.itemJSON);
-        return {
-            ...item, id: row.id
-        };
-    });
-
-    return items;
+  return rows.map(row => {
+    const item = JSON.parse(row.itemJSON);
+    return { ...item, id: row.id };
+  });
 };
 
 export const getItemData = (itemId) => {
   const stmt = database.prepare("SELECT * FROM inventory WHERE id = ?");
   const item = stmt.get(itemId);
 
-  if (!item) {
-    return null;
-  }
+  if (!item) return null;
 
   const itemData = JSON.parse(item.itemJSON);
-
-  return {
-    id: item.id,
-    owner_id: item.owner_id,
-    ...itemData
-  };
+  return { id: item.id, owner_id: item.owner_id, ...itemData };
 };
 
 export const attemptEquip = (userId, itemId) => {
-  const checkOwnership = `
-    SELECT 1 FROM inventory
+  const itemOwned = database.prepare(`
+    SELECT itemJSON
+    FROM inventory
     WHERE id = ? AND owner_id = ?
-  `;
-
-  const itemOwned = database.prepare(checkOwnership).get(itemId, userId);
+  `).get(itemId, userId);
 
   if (!itemOwned) {
-    throw new Error(`Item with ID ${itemId} does not belong to user ${userId}.`);
+    return { message: "not_owned" };
   }
 
-  const equipItem = `
-    UPDATE user
-    SET equipped = ?
-    WHERE userId = ?
-  `;
+  const itemData = JSON.parse(itemOwned.itemJSON);
 
-  const result = database.prepare(equipItem).run(itemId, userId);
+  if (!("damage" in itemData)) {
+    return { message: "not_weapon" };
+  }
+
+  const result = database.prepare(`
+    UPDATE user SET equipped = ? WHERE userId = ?
+  `).run(itemId, userId);
 
   if (result.changes === 0) {
-    throw new Error(`Failed to equip item for user ${userId} (user not found?).`);
+    return {message: "user_not_found" };
   }
 
-  return `User ${userId} equipped item with ID ${itemId}.`;
+  return { equippedItemId: itemId };
 };
 
 export const attemptGrab = (userId, itemId) => {
@@ -69,18 +59,56 @@ export const attemptGrab = (userId, itemId) => {
     const item = stmt.get(itemId);
 
     if (!item) {
-      throw new Error("Item not found");
+      return { message: "not_found" };
     }
 
     if (!item.owner_id) {
-      const updateStmt = database.prepare("UPDATE inventory SET owner_id = ? WHERE id = ?");
-      updateStmt.run(userId, itemId);
-      return { message: "Item successfully added to your inventory." };
-    } else {
-      return { message: "Item already owned." };
+      database.prepare("UPDATE inventory SET owner_id = ? WHERE id = ?").run(userId, itemId);
+      return { grabbed: true, itemId };
     }
 
-  } catch (err) {
-    return { message: "Failed to grab item" };
+    return { grabbed: false, alreadyOwned: true };
+  } catch {
+    return { message: "unknown_error" };
   }
+};
+
+const useHealingItem = (userId, itemId, data) => {
+  const user = database.prepare(`
+    SELECT health, maxHealth FROM user WHERE userId = ?
+  `).get(userId);
+
+  if (!user) {
+    return { message: "user_not_found" };
+  }
+
+  const healedAmount = Math.min(data.healing, user.maxHealth - user.health);
+  const newHealth = Math.min(user.health + data.healing, user.maxHealth);
+
+  database.prepare("UPDATE user SET health = ? WHERE userId = ?").run(newHealth, userId);
+  database.prepare("DELETE FROM inventory WHERE id = ? AND owner_id = ?").run(itemId, userId);
+
+  return {
+    used: "healing",
+    healedAmount,
+    newHealth,
+    maxHealth: user.maxHealth
+  };
+};
+
+export const attemptUse = (userId, itemId) => {
+  const item = database.prepare(`
+    SELECT * FROM inventory
+    WHERE id = ? AND owner_id = ?
+  `).get(itemId, userId);
+
+  if (!item) {
+    return { message: "not_owned" };
+  }
+
+  const data = JSON.parse(item.itemJSON);
+
+  if (data.healing) return useHealingItem(userId, itemId, data);
+
+  return { message: "unusable_item" };
 };

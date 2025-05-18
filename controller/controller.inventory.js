@@ -1,4 +1,4 @@
-import {attemptEquip, attemptGrab, getInventoryData, getItemData} from "../services/service.inventory.js";
+import {attemptEquip, attemptGrab, attemptUse, getInventoryData, getItemData} from "../services/service.inventory.js";
 
 export const viewInventory = (req, res) => {
   try {
@@ -38,6 +38,21 @@ export const equipItem = (req,res) => {
     return res.status(200).json({ error: false, data: result });
   } catch (e){
   res.status(500).json({ error: true, message: e.message });
+  }
+}
+
+export const useItem = (req,res) =>{
+  try {
+    const { userId } = req.user;
+    const {itemId} = req.body;
+
+    if (!itemId) {
+      return res.status(404).json({error: true, message: "Enter a valid item id."});
+    }
+
+    res.status(200).json({ error: false, data: attemptUse(userId,itemId) });
+  } catch (e) {
+    res.status(500).json({ error: true, message: e.message });
   }
 }
 

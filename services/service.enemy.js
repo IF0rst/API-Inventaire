@@ -1,33 +1,45 @@
 import database from "../db.js";
 
 const DROPS = {
-  zombieHand : {
+  zombieHand: {
     name: "Zombie Hand",
-    damage : 4,
+    damage: 4,
   },
-  slimeStaff : {
+  slimeStaff: {
     name: "Slime Staff",
-    damage : 2,
-  }
-}
+    damage: 2,
+  },
+  batPotion: {
+    name: "Bat Potion",
+    healing: 50,
+  },
+};
 
 const ENEMIES = [
   {
-    name : "zombie",
-    health : 10,
-    drop : DROPS.zombieHand
+    name: "zombie",
+    health: 10,
+    drop: DROPS.zombieHand,
+    damage: 10,
   },
   {
-    name : "slime",
-    health : 5,
-    drop : DROPS.slimeStaff
-  }
-]
+    name: "slime",
+    health: 5,
+    drop: DROPS.slimeStaff,
+    damage: 2,
+  },
+  {
+    name: "bat",
+    health: 5,
+    drop: DROPS.batPotion,
+    damage: 1,
+  },
+];
 
 export const getEnemiesList = () => {
   const stmt = database.prepare("SELECT id, name FROM enemy");
   const enemies = stmt.all();
-  return enemies;
+  return { enemies };
 };
 
 export const createEnemy = () => {
@@ -40,44 +52,89 @@ export const createEnemy = () => {
   const dropItemId = itemResult.lastInsertRowid;
 
   const insertEnemy = database.prepare(`
-    INSERT INTO enemy (name, health, dropItemId) VALUES (?, ?, ?)
+    INSERT INTO enemy (name, health, dropItemId, damage) VALUES (?, ?, ?, ?)
   `);
+  const enemyResult = insertEnemy.run(
+    randomEnemy.name,
+    randomEnemy.health,
+    dropItemId,
+    randomEnemy.damage
+  );
 
-  const enemyResult = insertEnemy.run(randomEnemy.name, randomEnemy.health, dropItemId);
-  return enemyResult.lastInsertRowid;
+  return {
+    enemyId: enemyResult.lastInsertRowid,
+    name: randomEnemy.name,
+    health: randomEnemy.health,
+    damage: randomEnemy.damage,
+    drop: randomEnemy.drop,
+  };
 };
 
 export const damageEnemy = (userId, enemyId) => {
-  const userStmt = database.prepare("SELECT equipped FROM user WHERE userId = ?");
+  const userStmt = database.prepare(
+    "SELECT equipped, health FROM user WHERE userId = ?"
+  );
   const user = userStmt.get(userId);
-  let damage = 1;
+  let damageToEnemy = 1;
 
   if (user && user.equipped !== null) {
-    const weaponStmt = database.prepare("SELECT itemJSON FROM inventory WHERE id = ?");
+    const weaponStmt = database.prepare(
+      "SELECT itemJSON FROM inventory WHERE id = ?"
+    );
     const weapon = weaponStmt.get(user.equipped);
 
     if (weapon) {
       const weaponData = JSON.parse(weapon.itemJSON);
-      damage = typeof weaponData.damage === "number" ? weaponData.damage : 1;
+      damageToEnemy =
+        typeof weaponData.damage === "number" ? weaponData.damage : 1;
     }
   }
 
-  const enemyStmt = database.prepare("SELECT id, name, health, dropItemId FROM enemy WHERE id = ?");
+  const enemyStmt = database.prepare(
+    "SELECT id, name, health, dropItemId, damage FROM enemy WHERE id = ?"
+  );
   const enemy = enemyStmt.get(enemyId);
 
   if (!enemy) {
-    return `Enemy with id ${enemyId} does not exist.`;
+    return { error: `Enemy with id ${enemyId} does not exist.` };
   }
 
-  const newHealth = enemy.health - damage;
+  const newEnemyHealth = Math.max(enemy.health - damageToEnemy, 0);
+  const enemyIsDead = newEnemyHealth <= 0;
 
-  if (newHealth > 0) {
-    const updateStmt = database.prepare("UPDATE enemy SET health = ? WHERE id = ?");
-    updateStmt.run(newHealth, enemy.id);
-    return `${enemy.name} has ${newHealth} HP remaining.`;
+  if (enemyIsDead) {
+    const deleteEnemyStmt = database.prepare(
+      "DELETE FROM enemy WHERE id = ?"
+    );
+    deleteEnemyStmt.run(enemy.id);
   } else {
-    const deleteStmt = database.prepare("DELETE FROM enemy WHERE id = ?");
-    deleteStmt.run(enemy.id);
-    return `${enemy.name} has died, the loot id is ${enemy.dropItemId}.`;
+    const updateEnemyStmt = database.prepare(
+      "UPDATE enemy SET health = ? WHERE id = ?"
+    );
+    updateEnemyStmt.run(newEnemyHealth, enemy.id);
   }
+
+  const enemyDamage = enemy.damage || 1;
+  const newUserHealth = Math.max(user.health - enemyDamage, 0);
+  const updateUserStmt = database.prepare(
+    "UPDATE user SET health = ? WHERE userId = ?"
+  );
+  updateUserStmt.run(newUserHealth, userId);
+
+  const result = {
+    userId,
+    enemyId: enemy.id,
+    enemyName: enemy.name,
+    enemyHp: newEnemyHealth,
+    playerHp: newUserHealth,
+    damageDealtToEnemy: damageToEnemy,
+    damageTakenByPlayer: enemyDamage,
+    enemyDefeated: enemyIsDead,
+  };
+
+  if (enemyIsDead) {
+    result.lootId = enemy.dropItemId;
+  }
+
+  return result;
 };
